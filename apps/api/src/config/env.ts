@@ -27,5 +27,8 @@ export const env = {
     user: required("DATABASE_USER"),
     password: required("DATABASE_PASSWORD"),
   },
+  redis: {
+    url: required("REDIS_URL"),
+  },
   port: Number(process.env.PORT || 3000),
 };
