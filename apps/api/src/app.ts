@@ -1,3 +1,4 @@
+import { errorHandler } from "./middleware/error-handler.js";
 import { requestContext } from "./middleware/request-context.js";
 import {
   securityHeaders,
@@ -71,3 +72,5 @@ app.get("/health/db", async (_req, res) => {
     });
   }
 });
+
+app.use(errorHandler);

@@ -1,5 +1,6 @@
 import { Router } from "express";
 
+import { AppError } from "../errors/app-error.js";
 import { recordAuditEvent } from "../audit/service.js";
 import { loginUser } from "./login.js";
 import { getUserFromSession, revokeSession } from "./session.js";
@@ -12,11 +13,12 @@ authRouter.post("/register", async (req, res) => {
   const parsed = registerSchema.safeParse(req.body);
 
   if (!parsed.success) {
-    return res.status(400).json({
-      status: "error",
-      message: "Invalid registration data",
-      errors: parsed.error.flatten(),
-    });
+    throw new AppError(
+      400,
+      "VALIDATION_ERROR",
+      "Invalid registration data",
+      parsed.error.flatten(),
+    );
   }
 
   try {
@@ -44,18 +46,14 @@ authRouter.post("/register", async (req, res) => {
         },
       });
 
-      return res.status(409).json({
-        status: "error",
-        message: "User already exists",
-      });
+      throw new AppError(
+        409,
+        "USER_ALREADY_EXISTS",
+        "User already exists",
+      );
     }
 
-    console.error("Registration failed:", error);
-
-    return res.status(500).json({
-      status: "error",
-      message: "Internal server error",
-    });
+    throw error;
   }
 });
 
@@ -63,11 +61,12 @@ authRouter.post("/login", async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
 
   if (!parsed.success) {
-    return res.status(400).json({
-      status: "error",
-      message: "Invalid login data",
-      errors: parsed.error.flatten(),
-    });
+    throw new AppError(
+      400,
+      "VALIDATION_ERROR",
+      "Invalid login data",
+      parsed.error.flatten(),
+    );
   }
 
   try {
@@ -85,10 +84,11 @@ authRouter.post("/login", async (req, res) => {
         },
       });
 
-      return res.status(401).json({
-        status: "error",
-        message: "Invalid email or password",
-      });
+      throw new AppError(
+        401,
+        "INVALID_CREDENTIALS",
+        "Invalid email or password",
+      );
     }
 
     res.cookie("session", result.sessionToken, {
@@ -111,12 +111,11 @@ authRouter.post("/login", async (req, res) => {
       user: result.user,
     });
   } catch (error) {
-    console.error("Login failed:", error);
+    if (error instanceof AppError) {
+      throw error;
+    }
 
-    return res.status(500).json({
-      status: "error",
-      message: "Internal server error",
-    });
+    throw error;
   }
 });
 
@@ -124,20 +123,22 @@ authRouter.get("/me", async (req, res) => {
   const sessionToken = req.cookies.session;
 
   if (!sessionToken) {
-    return res.status(401).json({
-      status: "error",
-      message: "Authentication required",
-    });
+    throw new AppError(
+      401,
+      "AUTHENTICATION_REQUIRED",
+      "Authentication required",
+    );
   }
 
   try {
     const session = await getUserFromSession(sessionToken);
 
     if (!session) {
-      return res.status(401).json({
-        status: "error",
-        message: "Invalid or expired session",
-      });
+      throw new AppError(
+        401,
+        "INVALID_SESSION",
+        "Invalid or expired session",
+      );
     }
 
     return res.json({
@@ -151,12 +152,11 @@ authRouter.get("/me", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Session lookup failed:", error);
+    if (error instanceof AppError) {
+      throw error;
+    }
 
-    return res.status(500).json({
-      status: "error",
-      message: "Internal server error",
-    });
+    throw error;
   }
 });
 
@@ -176,12 +176,11 @@ authRouter.post("/logout", async (req, res) => {
         success: true,
       });
     } catch (error) {
-      console.error("Logout failed:", error);
+      if (error instanceof AppError) {
+        throw error;
+      }
 
-      return res.status(500).json({
-        status: "error",
-        message: "Internal server error",
-      });
+      throw error;
     }
   } else {
     await recordAuditEvent(req, {
