@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
-import { recordAuditEvent } from "../audit/service.js";
 
+import { AppError } from "../errors/app-error.js";
+import { recordAuditEvent } from "../audit/service.js";
 import {
   hasProjectRole,
   type ProjectRole,
@@ -11,65 +12,52 @@ export function requireProjectRole(
 ) {
   return async (
     req: Request,
-    res: Response,
+    _res: Response,
     next: NextFunction,
   ) => {
     if (!req.user) {
-      return res.status(401).json({
-        status: "error",
-        message: "Authentication required",
-      });
-    }
-
-const projectId = req.params.id;
-
-   if (typeof projectId !== "string") {
-      return res.status(400).json({
-        status: "error",
-        message: "Invalid project ID",
-      });
-    }
-
-    if (!projectId) {
-      return res.status(400).json({
-        status: "error",
-        message: "Project ID is required",
-      });
-    }
-
-    try {
-      const allowed = await hasProjectRole(
-        projectId,
-        req.user.id,
-        minimumRole,
+      throw new AppError(
+        401,
+        "AUTHENTICATION_REQUIRED",
+        "Authentication required",
       );
-
-      if (!allowed) {
-        await recordAuditEvent(req, {
-          action: "access_denied",
-          userId: req.user.id,
-          resource: "project",
-          resourceId: projectId,
-          success: false,
-          metadata: {
-            requiredRole: minimumRole,
-          },
-        });
-
-        return res.status(403).json({
-          status: "error",
-          message: "Insufficient project permissions",
-        });
-      }
-
-      return next();
-    } catch (error) {
-      console.error("Project authorization failed:", error);
-
-      return res.status(500).json({
-        status: "error",
-        message: "Internal server error",
-      });
     }
+
+    const projectId = req.params.id;
+
+    if (typeof projectId !== "string" || !projectId) {
+      throw new AppError(
+        400,
+        "INVALID_PROJECT_ID",
+        "Invalid project ID",
+      );
+    }
+
+    const allowed = await hasProjectRole(
+      projectId,
+      req.user.id,
+      minimumRole,
+    );
+
+    if (!allowed) {
+      await recordAuditEvent(req, {
+        action: "access_denied",
+        userId: req.user.id,
+        resource: "project",
+        resourceId: projectId,
+        success: false,
+        metadata: {
+          requiredRole: minimumRole,
+        },
+      });
+
+      throw new AppError(
+        403,
+        "INSUFFICIENT_PROJECT_PERMISSIONS",
+        "Insufficient project permissions",
+      );
+    }
+
+    return next();
   };
 }

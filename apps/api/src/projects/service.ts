@@ -1,5 +1,6 @@
 import { db } from "../db/index.js";
 import { projectMembers, projects } from "../db/schema.js";
+import { AppError } from "../errors/app-error.js";
 
 export async function createProject(
   userId: string,
@@ -21,7 +22,11 @@ export async function createProject(
       .returning();
 
     if (!project) {
-      throw new Error("PROJECT_CREATION_FAILED");
+      throw new AppError(
+        500,
+        "PROJECT_CREATION_FAILED",
+        "Project creation failed",
+      );
     }
 
     await tx.insert(projectMembers).values({
