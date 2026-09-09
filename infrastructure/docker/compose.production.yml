@@ -83,6 +83,20 @@ services:
         condition: service_completed_successfully
     command: ["node", "dist/apps/api/src/worker.js"]
 
+  prometheus:
+    image: prom/prometheus:v3.8.1
+    restart: unless-stopped
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    depends_on:
+      api:
+        condition: service_started
+
   nginx:
     image: nginx:1.29-alpine
     restart: unless-stopped
@@ -97,3 +111,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  prometheus_data:
