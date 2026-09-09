@@ -1,0 +1,31 @@
+FROM node:24-bookworm-slim AS build
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY tsconfig.json ./
+COPY drizzle.config.ts ./
+COPY apps/api ./apps/api
+COPY database ./database
+
+RUN npm run build
+
+
+FROM node:24-bookworm-slim AS production
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+COPY --from=build /app/dist/apps/api ./dist/apps/api
+
+USER node
+
+EXPOSE 3000
+
+CMD ["node", "dist/apps/api/src/index.js"]

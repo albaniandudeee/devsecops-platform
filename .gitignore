@@ -1,0 +1,14 @@
+.env
+node_modules/
+.env.*
+!.env.example
+dist/
+coverage/
+*.log
+
+# Local test authentication cookies
+cookies.txt
+member-cookies.txt
+
+# Build output
+dist/
