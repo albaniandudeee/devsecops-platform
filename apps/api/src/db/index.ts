@@ -13,6 +13,14 @@ export const pool = new Pool({
 
 export const db = drizzle(pool);
 
+export function getDatabasePoolMetrics() {
+  return {
+    totalConnections: pool.totalCount,
+    idleConnections: pool.idleCount,
+    waitingRequests: pool.waitingCount,
+  };
+}
+
 export async function checkDatabase(): Promise<void> {
   await pool.query("SELECT 1");
 }
