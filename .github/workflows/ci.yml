@@ -16,6 +16,28 @@ jobs:
     name: Test & Build
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: devsecops_test
+          POSTGRES_USER: devsecops_test
+          POSTGRES_PASSWORD: ci_test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U devsecops_test -d devsecops_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DATABASE_NAME: devsecops_test
+      DATABASE_USER: devsecops_test
+      DATABASE_PASSWORD: ci_test_password
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,6 +50,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Run database migrations
+        run: npx drizzle-kit migrate
 
       - name: TypeScript build
         run: npm run build
