@@ -1,7 +1,8 @@
-import { db } from "../db/index.js";
-import { auditLogs } from "../db/schema.js";
-import type { InferInsertModel } from "drizzle-orm";
 import type { Request } from "express";
+
+import { auditQueue } from "../queue/audit-queue.js";
+import type { InferInsertModel } from "drizzle-orm";
+import { auditLogs } from "../db/schema.js";
 
 type AuditLogInsert = InferInsertModel<typeof auditLogs>;
 
@@ -18,7 +19,7 @@ export async function recordAuditEvent(
   req: Request,
   event: AuditEvent,
 ): Promise<void> {
-  await db.insert(auditLogs).values({
+  await auditQueue.add("audit-event", {
     requestId: req.requestId,
     action: event.action,
     userId: event.userId ?? null,

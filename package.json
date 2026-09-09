@@ -9,7 +9,8 @@
   "scripts": {
     "test": "vitest run",
     "build": "tsc",
-    "dev": "npm --prefix apps/api run dev"
+    "dev": "npm --prefix apps/api run dev",
+    "worker": "tsx apps/api/src/worker.ts"
   },
   "keywords": [],
   "author": "",
