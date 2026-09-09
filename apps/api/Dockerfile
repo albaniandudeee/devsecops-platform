@@ -13,6 +13,13 @@ COPY database ./database
 RUN npm run build
 
 
+FROM build AS migration
+
+ENV NODE_ENV=production
+
+CMD ["node", "node_modules/drizzle-kit/bin.cjs", "migrate"]
+
+
 FROM build AS production-deps
 
 RUN npm prune --omit=dev
