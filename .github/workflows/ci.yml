@@ -62,3 +62,15 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Build API Docker image
+        run: docker build -t devsecops-platform-api:ci -f apps/api/Dockerfile .
+
+      - name: Run Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: devsecops-platform-api:ci
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
