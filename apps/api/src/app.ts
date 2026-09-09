@@ -1,3 +1,4 @@
+import { requestContext } from "./middleware/request-context.js";
 import {
   securityHeaders,
   apiRateLimit,
@@ -14,6 +15,7 @@ import { projectsRouter } from "./projects/routes.js";
 
 export const app = express();
 
+app.use(requestContext);
 app.use(securityHeaders);
 app.use(apiRateLimit);
 

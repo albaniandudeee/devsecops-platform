@@ -1,5 +1,6 @@
 import { Router } from "express";
 
+import { recordAuditEvent } from "../audit/service.js";
 import { loginUser } from "./login.js";
 import { getUserFromSession, revokeSession } from "./session.js";
 import { registerUser } from "./service.js";
@@ -21,12 +22,28 @@ authRouter.post("/register", async (req, res) => {
   try {
     const user = await registerUser(parsed.data);
 
+    await recordAuditEvent(req, {
+      action: "register",
+      userId: user.id,
+      resource: "user",
+      resourceId: user.id,
+      success: true,
+    });
+
     return res.status(201).json({
       status: "ok",
       user,
     });
   } catch (error) {
     if (error instanceof Error && error.message === "USER_ALREADY_EXISTS") {
+      await recordAuditEvent(req, {
+        action: "register",
+        success: false,
+        metadata: {
+          reason: "user_already_exists",
+        },
+      });
+
       return res.status(409).json({
         status: "error",
         message: "User already exists",
@@ -60,6 +77,14 @@ authRouter.post("/login", async (req, res) => {
     );
 
     if (!result) {
+      await recordAuditEvent(req, {
+        action: "login_failure",
+        success: false,
+        metadata: {
+          reason: "invalid_credentials",
+        },
+      });
+
       return res.status(401).json({
         status: "error",
         message: "Invalid email or password",
@@ -72,6 +97,13 @@ authRouter.post("/login", async (req, res) => {
       secure: process.env.NODE_ENV === "production",
       expires: result.expiresAt,
       path: "/",
+    });
+
+    await recordAuditEvent(req, {
+      action: "login_success",
+      userId: result.user.id,
+      resource: "session",
+      success: true,
     });
 
     return res.json({
@@ -133,7 +165,16 @@ authRouter.post("/logout", async (req, res) => {
 
   if (sessionToken) {
     try {
+      const session = await getUserFromSession(sessionToken);
+
       await revokeSession(sessionToken);
+
+      await recordAuditEvent(req, {
+        action: "logout",
+        userId: session?.userId ?? null,
+        resource: "session",
+        success: true,
+      });
     } catch (error) {
       console.error("Logout failed:", error);
 
@@ -142,35 +183,14 @@ authRouter.post("/logout", async (req, res) => {
         message: "Internal server error",
       });
     }
-  }
-
-  res.clearCookie("session", {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-  });
-
-  return res.json({
-    status: "ok",
-    message: "Logged out",
-  });
-});
-
-authRouter.post("/logout", async (req, res) => {
-  const sessionToken = req.cookies.session;
-
-  if (sessionToken) {
-    try {
-      await revokeSession(sessionToken);
-    } catch (error) {
-      console.error("Logout failed:", error);
-
-      return res.status(500).json({
-        status: "error",
-        message: "Internal server error",
-      });
-    }
+  } else {
+    await recordAuditEvent(req, {
+      action: "logout",
+      success: true,
+      metadata: {
+        reason: "no_session_cookie",
+      },
+    });
   }
 
   res.clearCookie("session", {

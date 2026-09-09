@@ -30,5 +30,9 @@ export async function registerUser(input: RegisterInput) {
       createdAt: users.createdAt,
     });
 
+  if (!user) {
+    throw new Error("USER_CREATION_FAILED");
+  }
+
   return user;
 }

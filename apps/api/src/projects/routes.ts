@@ -18,6 +18,7 @@ import { requireAuth } from "../middleware/auth.js";
 import { requireProjectRole } from "../middleware/project-auth.js";
 import { createProject } from "./service.js";
 import { createProjectSchema } from "./validation.js";
+import { recordAuditEvent } from "../audit/service.js";
 
 export const projectsRouter = Router();
 
@@ -34,6 +35,14 @@ projectsRouter.post("/", requireAuth, async (req, res) => {
 
   try {
     const project = await createProject(req.user!.id, parsed.data);
+
+    await recordAuditEvent(req, {
+      action: "project_created",
+      userId: req.user!.id,
+      resource: "project",
+      resourceId: project.id,
+      success: true,
+    });
 
     return res.status(201).json({
       status: "ok",
@@ -132,6 +141,19 @@ projectsRouter.post(
         projectId,
         parsed.data,
       );
+
+      await recordAuditEvent(req, {
+        action: "member_added",
+        userId: req.user!.id,
+        resource: "project_member",
+        resourceId: result.membership.id,
+        success: true,
+        metadata: {
+          projectId,
+          memberUserId: parsed.data.userId,
+          role: parsed.data.role,
+        },
+      });
 
       return res.status(201).json({
         status: "ok",
@@ -235,6 +257,19 @@ projectsRouter.patch(
         parsed.data.role,
       );
 
+      await recordAuditEvent(req, {
+        action: "role_changed",
+        userId: req.user!.id,
+        resource: "project_member",
+        resourceId: member.id,
+        success: true,
+        metadata: {
+          projectId,
+          memberUserId: userId,
+          newRole: parsed.data.role,
+        },
+      });
+
       return res.json({
         status: "ok",
         member,
@@ -292,6 +327,19 @@ projectsRouter.delete(
         projectId,
         userId,
       );
+
+      await recordAuditEvent(req, {
+        action: "member_removed",
+        userId: req.user!.id,
+        resource: "project_member",
+        resourceId: member.id,
+        success: true,
+        metadata: {
+          projectId,
+          memberUserId: userId,
+          removedRole: member.role,
+        },
+      });
 
       return res.json({
         status: "ok",

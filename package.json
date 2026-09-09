@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "vitest run",
-    "build": "tsc"
+    "build": "tsc",
+    "dev": "npm --prefix apps/api run dev"
   },
   "keywords": [],
   "author": "",

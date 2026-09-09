@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { recordAuditEvent } from "../audit/service.js";
 
 import {
   hasProjectRole,
@@ -44,6 +45,17 @@ const projectId = req.params.id;
       );
 
       if (!allowed) {
+        await recordAuditEvent(req, {
+          action: "access_denied",
+          userId: req.user.id,
+          resource: "project",
+          resourceId: projectId,
+          success: false,
+          metadata: {
+            requiredRole: minimumRole,
+          },
+        });
+
         return res.status(403).json({
           status: "error",
           message: "Insufficient project permissions",

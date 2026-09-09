@@ -6,6 +6,8 @@ import {
   timestamp,
   index,
   unique,
+  boolean,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const projectRole = pgEnum("project_role", [
@@ -129,5 +131,56 @@ export const projectMembers = pgTable(
     ),
     index("project_members_project_id_idx").on(table.projectId),
     index("project_members_user_id_idx").on(table.userId),
+  ],
+);
+
+export const auditAction = pgEnum("audit_action", [
+  "register",
+  "login_success",
+  "login_failure",
+  "logout",
+  "project_created",
+  "member_added",
+  "member_removed",
+  "role_changed",
+  "access_denied",
+]);
+
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    requestId: varchar("request_id", { length: 128 }).notNull(),
+
+    userId: uuid("user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+
+    action: auditAction("action").notNull(),
+
+    resource: varchar("resource", { length: 100 }),
+
+    resourceId: uuid("resource_id"),
+
+    success: boolean("success").notNull().default(true),
+
+    ipAddress: varchar("ip_address", { length: 45 }),
+
+    userAgent: varchar("user_agent", { length: 500 }),
+
+    metadata: jsonb("metadata"),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("audit_logs_request_id_idx").on(table.requestId),
+    index("audit_logs_user_id_idx").on(table.userId),
+    index("audit_logs_action_idx").on(table.action),
+    index("audit_logs_created_at_idx").on(table.createdAt),
   ],
 );
