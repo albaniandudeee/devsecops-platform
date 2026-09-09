@@ -29,9 +29,13 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 RUN mkdir -p /opt/migration \
-    && printf '%s\n' '{"name":"migration-tools","private":true,"dependencies":{"drizzle-kit":"0.31.10"}}' > /opt/migration/package.json \
+    && printf '%s\n' '{"name":"migration-tools","private":true,"dependencies":{"drizzle-kit":"0.31.10"},"overrides":{"esbuild":"0.28.2"}}' > /opt/migration/package.json \
     && npm install --prefix /opt/migration --omit=dev --ignore-scripts \
     && cp -a /opt/migration/node_modules/. ./node_modules/
+
+RUN rm -rf /usr/local/lib/node_modules/npm \
+    /usr/local/bin/npm \
+    /usr/local/bin/npx
 
 COPY drizzle.config.ts ./
 COPY database ./database
