@@ -13,10 +13,13 @@ import { env } from "./config/env.js";
 import { authRouter } from "./auth/routes.js";
 import { usersRouter } from "./users/routes.js";
 import { projectsRouter } from "./projects/routes.js";
+import { metricsMiddleware } from "./middleware/metrics.js";
+import { register } from "./metrics/index.js";
 
 export const app = express();
 
 app.use(requestContext);
+app.use(metricsMiddleware);
 app.use(securityHeaders);
 app.use(apiRateLimit);
 
@@ -26,6 +29,11 @@ app.use(cookieParser());
 app.use("/auth", authRouter);
 app.use("/users", usersRouter);
 app.use("/projects", projectsRouter);
+
+app.get("/metrics", async (_req, res) => {
+  res.setHeader("Content-Type", register.contentType);
+  res.end(await register.metrics());
+});
 
 app.get("/health", async (_req, res) => {
   try {

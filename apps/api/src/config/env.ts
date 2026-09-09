@@ -1,7 +1,12 @@
 import dotenv from "dotenv";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+const currentDir = dirname(fileURLToPath(import.meta.url));
+const projectRoot = resolve(currentDir, "../../../..");
 
 dotenv.config({
-  path: `${process.cwd()}/.env`,
+  path: resolve(projectRoot, ".env"),
 });
 
 function required(name: string): string {
