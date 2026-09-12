@@ -7,6 +7,7 @@ import {
 import express from "express";
 import cookieParser from "cookie-parser";
 
+import { checkRedis } from "./queue/redis.js";
 import { db, pool } from "./db/index.js";
 import { users } from "./db/schema.js";
 import { env } from "./config/env.js";
@@ -51,25 +52,60 @@ app.get("/metrics", async (_req, res) => {
   }
 });
 
-app.get("/health", async (_req, res) => {
-  try {
-    await pool.query("SELECT 1");
+app.get("/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    api: "healthy",
+    timestamp: new Date().toISOString(),
+  });
+});
 
-    res.json({
-      status: "ok",
-      api: "healthy",
-      database: "healthy",
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error("Database health check failed:", error);
+app.get("/health/live", (_req, res) => {
+  res.status(200).json({
+    status: "ok",
+    live: true,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get("/health/ready", async (_req, res) => {
+  const checks = {
+    database: "unknown",
+    redis: "unknown",
+  };
+
+  const results = await Promise.allSettled([
+    pool.query("SELECT 1"),
+    checkRedis(),
+  ]);
+
+  checks.database = results[0].status === "fulfilled"
+    ? "healthy"
+    : "unhealthy";
+
+  checks.redis = results[1].status === "fulfilled"
+    ? "healthy"
+    : "unhealthy";
+
+  const ready = results.every((result) => result.status === "fulfilled");
+
+  if (!ready) {
+    console.error("Readiness check failed:", results);
 
     res.status(503).json({
-      status: "error",
-      api: "healthy",
-      database: "unhealthy",
+      status: "not_ready",
+      checks,
+      timestamp: new Date().toISOString(),
     });
+
+    return;
   }
+
+  res.status(200).json({
+    status: "ready",
+    checks,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.get("/health/db", async (_req, res) => {

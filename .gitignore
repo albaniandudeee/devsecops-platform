@@ -12,3 +12,8 @@ member-cookies.txt
 
 # Build output
 dist/
+
+# Local authentication/session artifacts
+*-cookies.txt
+*-cookie.txt
+cookies.txt
