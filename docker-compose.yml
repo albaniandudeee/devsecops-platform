@@ -32,17 +32,18 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-      target: build
+      target: migration
     environment:
       DATABASE_HOST: postgres
       DATABASE_PORT: ${DATABASE_PORT}
       DATABASE_NAME: ${DATABASE_NAME}
       DATABASE_USER: ${DATABASE_USER}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      REDIS_URL: redis://redis:6379
     depends_on:
       postgres:
         condition: service_healthy
-    command: ["npx", "drizzle-kit", "migrate"]
+    command: ["node", "node_modules/drizzle-kit/bin.cjs", "migrate"]
 
   api:
     build:
@@ -57,6 +58,7 @@ services:
       DATABASE_NAME: ${DATABASE_NAME}
       DATABASE_USER: ${DATABASE_USER}
       DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      REDIS_URL: redis://redis:6379
     depends_on:
       postgres:
         condition: service_healthy
