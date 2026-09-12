@@ -24,6 +24,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpcre2-8-0 \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY package.json package-lock.json ./
 
 RUN npm ci --omit=dev
@@ -47,6 +51,10 @@ FROM node:24-bookworm-slim AS production
 WORKDIR /app
 
 ENV NODE_ENV=production
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpcre2-8-0 \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN rm -rf /usr/local/lib/node_modules/npm \
     /usr/local/bin/npm \
