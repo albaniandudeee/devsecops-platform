@@ -112,8 +112,12 @@ services:
       - grafana_data:/var/lib/grafana
       - ../grafana/provisioning:/etc/grafana/provisioning:ro
       - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
-    ports:
-      - "3002:3000"
+
+  web:
+    image: ${WEB_IMAGE}
+    restart: unless-stopped
+    expose:
+      - "80"
 
   nginx:
     image: nginx:1.29-alpine
