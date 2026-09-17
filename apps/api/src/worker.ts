@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 
 import { Worker } from "bullmq";
+import { eq } from "drizzle-orm";
 import {
   Counter,
   Gauge,
@@ -9,12 +10,30 @@ import {
 } from "@prometheus-io/client";
 
 import { db, pool } from "./db/index.js";
-import { auditLogs } from "./db/schema.js";
+import { auditLogs, users } from "./db/schema.js";
 import {
   AUDIT_QUEUE_NAME,
   type AuditJobData,
 } from "./queue/audit-queue.js";
 import { redisConnection } from "./queue/redis.js";
+
+function isForeignKeyViolation(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  if ("code" in error && error.code === "23503") {
+    return true;
+  }
+
+  const cause = "cause" in error ? error.cause : undefined;
+
+  return (
+    cause instanceof Error &&
+    "code" in cause &&
+    cause.code === "23503"
+  );
+}
 
 const workerJobsCompleted = new Counter({
   name: "worker_jobs_completed_total",
@@ -50,17 +69,55 @@ const worker = new Worker<AuditJobData>(
     workerJobsActive.inc();
 
     try {
-      await db.insert(auditLogs).values({
+      let auditUserId = job.data.userId;
+
+      if (auditUserId) {
+        const [user] = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(eq(users.id, auditUserId))
+          .limit(1);
+
+        if (!user) {
+          console.warn(
+            `Audit job ${job.id}: user ${auditUserId} no longer exists; storing audit event without userId`,
+          );
+
+          auditUserId = null;
+        }
+      }
+
+      const auditValues = {
         requestId: job.data.requestId,
         action: job.data.action,
-        userId: job.data.userId,
+        userId: auditUserId,
         resource: job.data.resource,
         resourceId: job.data.resourceId,
         success: job.data.success,
         ipAddress: job.data.ipAddress,
         userAgent: job.data.userAgent,
         metadata: job.data.metadata,
-      });
+      };
+
+      try {
+        await db.insert(auditLogs).values(auditValues);
+      } catch (error) {
+        const foreignKeyViolation = isForeignKeyViolation(error);
+
+        if (!foreignKeyViolation || !auditUserId) {
+          throw error;
+        }
+
+        console.warn(
+          `Audit job ${job.id}: user ${auditUserId} was deleted during processing; retrying without userId`,
+        );
+
+        await db.insert(auditLogs).values({
+          ...auditValues,
+          userId: null,
+        });
+      }
+
     } finally {
       const durationSeconds =
         Number(process.hrtime.bigint() - start) / 1_000_000_000;
@@ -92,7 +149,26 @@ worker.on("error", (error) => {
 });
 
 const metricsServer = createServer(async (req, res) => {
-  if (req.method !== "GET" || req.url !== "/metrics") {
+  if (req.method !== "GET") {
+    res.statusCode = 404;
+    res.end("Not Found");
+    return;
+  }
+
+  if (req.url === "/health") {
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/json");
+    res.end(
+      JSON.stringify({
+        status: "ok",
+        worker: "healthy",
+        timestamp: new Date().toISOString(),
+      }),
+    );
+    return;
+  }
+
+  if (req.url !== "/metrics") {
     res.statusCode = 404;
     res.end("Not Found");
     return;
