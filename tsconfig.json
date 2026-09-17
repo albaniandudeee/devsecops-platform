@@ -24,7 +24,7 @@
     "skipLibCheck": true
   },
   "include": [
-    "apps/**/*.ts",
+    "apps/api/**/*.ts",
     "drizzle.config.ts"
   ],
   "exclude": [
