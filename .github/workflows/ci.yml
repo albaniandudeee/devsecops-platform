@@ -125,6 +125,13 @@ jobs:
             -t devsecops-platform-migrate:${{ github.sha }} \
             -f apps/api/Dockerfile .
 
+      - name: Build web Docker image
+        run: |
+          docker build \
+            --target production \
+            -t devsecops-platform-web:${{ github.sha }} \
+            -f apps/web/Dockerfile .
+
       - name: Scan API image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -138,6 +145,15 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: devsecops-platform-migrate:${{ github.sha }}
+          format: table
+          exit-code: 1
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+
+      - name: Scan web image with Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: devsecops-platform-web:${{ github.sha }}
           format: table
           exit-code: 1
           ignore-unfixed: true
@@ -159,6 +175,14 @@ jobs:
           output: migration-sbom.json
           exit-code: 0
 
+      - name: Generate web SBOM
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: devsecops-platform-web:${{ github.sha }}
+          format: cyclonedx
+          output: web-sbom.json
+          exit-code: 0
+
       - name: Save API image
         run: |
           docker save \
@@ -170,6 +194,12 @@ jobs:
           docker save \
             devsecops-platform-migrate:${{ github.sha }} \
             -o migration-image.tar
+
+      - name: Save web image
+        run: |
+          docker save \
+            devsecops-platform-web:${{ github.sha }} \
+            -o web-image.tar
 
       - name: Upload API image
         uses: actions/upload-artifact@v4
@@ -187,6 +217,14 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Upload web image
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-image-${{ github.sha }}
+          path: web-image.tar
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Upload API SBOM
         uses: actions/upload-artifact@v4
         with:
@@ -200,6 +238,14 @@ jobs:
         with:
           name: migration-sbom-${{ github.sha }}
           path: migration-sbom.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload web SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-sbom-${{ github.sha }}
+          path: web-sbom.json
           if-no-files-found: error
           retention-days: 30
 
