@@ -270,11 +270,19 @@ jobs:
         with:
           name: migration-image-${{ github.sha }}
 
+      - name: Download web image
+        uses: actions/download-artifact@v4
+        with:
+          name: web-image-${{ github.sha }}
+
       - name: Load API image
         run: docker load -i api-image.tar
 
       - name: Load migration image
         run: docker load -i migration-image.tar
+
+      - name: Load web image
+        run: docker load -i web-image.tar
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -288,6 +296,7 @@ jobs:
         run: |
           echo "api=ghcr.io/${GITHUB_REPOSITORY,,}/api" >> "$GITHUB_OUTPUT"
           echo "migration=ghcr.io/${GITHUB_REPOSITORY,,}/migrate" >> "$GITHUB_OUTPUT"
+          echo "web=ghcr.io/${GITHUB_REPOSITORY,,}/web" >> "$GITHUB_OUTPUT"
 
       - name: Tag API image
         run: |
@@ -309,6 +318,16 @@ jobs:
             devsecops-platform-migrate:${{ github.sha }} \
             ${{ steps.images.outputs.migration }}:main
 
+      - name: Tag web image
+        run: |
+          docker tag \
+            devsecops-platform-web:${{ github.sha }} \
+            ${{ steps.images.outputs.web }}:${{ github.sha }}
+
+          docker tag \
+            devsecops-platform-web:${{ github.sha }} \
+            ${{ steps.images.outputs.web }}:main
+
       - name: Push API image
         run: |
           docker push ${{ steps.images.outputs.api }}:${{ github.sha }}
@@ -318,3 +337,8 @@ jobs:
         run: |
           docker push ${{ steps.images.outputs.migration }}:${{ github.sha }}
           docker push ${{ steps.images.outputs.migration }}:main
+
+      - name: Push web image
+        run: |
+          docker push ${{ steps.images.outputs.web }}:${{ github.sha }}
+          docker push ${{ steps.images.outputs.web }}:main
