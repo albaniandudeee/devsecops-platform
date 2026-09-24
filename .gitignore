@@ -1,19 +1,14 @@
 .env
-node_modules/
 .env.*
 !.env.example
+
+node_modules/
 dist/
 coverage/
 *.log
-
-# Local test authentication cookies
-cookies.txt
-member-cookies.txt
-
-# Build output
-dist/
 
 # Local authentication/session artifacts
 *-cookies.txt
 *-cookie.txt
 cookies.txt
+member-cookies.txt
