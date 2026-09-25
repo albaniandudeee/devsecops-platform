@@ -12,3 +12,6 @@ coverage/
 *-cookie.txt
 cookies.txt
 member-cookies.txt
+
+# Database backups
+/backups/
